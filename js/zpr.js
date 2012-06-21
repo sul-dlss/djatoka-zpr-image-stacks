@@ -1,4 +1,4 @@
-var zpr = function(viewFinderId, inputValues) {
+function zpr(viewFinderId, inputValues) {
 
   var viewFinder = $('#' + viewFinderId); // viewFinder DOM element
   var imgFrame   = undefined; // imgFrame DOM element
@@ -24,7 +24,7 @@ var zpr = function(viewFinderId, inputValues) {
   var marqueeAttrs = { imgWidth: 0, imgHeight: 0, width: 0, height: 0 }; 
 
   /* init() function */
-  var init = function() {
+  function init() {
     // copy data from function arguments
     jp2.url    = inputValues.jp2URL;
     jp2.width  = inputValues.width;
@@ -50,11 +50,11 @@ var zpr = function(viewFinderId, inputValues) {
     setupImgFrameDragging();
     storeRelativeLocation();
     addControlElements();
-  };
+  }
 
   
   /* add zoom and other controls */
-  var addControlElements = function() {
+  function addControlElements() {
     
     // add zoom/rotate controls
     viewFinder
@@ -80,7 +80,7 @@ var zpr = function(viewFinderId, inputValues) {
     
   
   /* get total levels for the jp2 */
-  var getNumLevels = function() {
+  function getNumLevels() {
     var longestSide = Math.max(jp2.width, jp2.height);
     var level = 0;
     
@@ -90,11 +90,11 @@ var zpr = function(viewFinderId, inputValues) {
     }
         
     return level;
-  };
+  }
 
   
   /* set imgFrame dimensions */
-  var setImgFrameSize = function(level) {    
+  function setImgFrameSize(level) {    
     imgFrame.width(getImgDimensionsForLevel(level)[0]);    
     imgFrame.height(getImgDimensionsForLevel(level)[1]);
 
@@ -103,21 +103,21 @@ var zpr = function(viewFinderId, inputValues) {
     
     setMarqueeDimensions();    
     positionImgFrame();   
-  };
+  }
 
   
   /* get dimensions for a given level */
-  var getImgDimensionsForLevel = function(level) {
+  function getImgDimensionsForLevel(level) {
     var divisor = Math.pow(2, (jp2.levels - level));
     var height  = Math.round(jp2.height / divisor);    
     var width   = Math.round(jp2.width / divisor);
     
     return ([width, height]);    
-  };
+  }
   
   
   /* calculate level for a given container */
-  var getLevelForContainer = function(ctWidth, ctHeight) {
+  function getLevelForContainer(ctWidth, ctHeight) {
     var maxJp2Dimension = Math.max(jp2.width, jp2.height);
     var minContainerDimension = ctWidth;
     
@@ -134,11 +134,11 @@ var zpr = function(viewFinderId, inputValues) {
     }
     
     return 0;  
-  };
+  }
   
   
   /* position imgFrame */
-  var positionImgFrame = function() {
+  function positionImgFrame() {
     var left = 0;
     var top = 10;
     
@@ -160,11 +160,11 @@ var zpr = function(viewFinderId, inputValues) {
 
     imgFrame.css({ 'top': top + 'px', 'left': left + 'px' });
     showTiles(); 
-  };
+  }
   
   
   /* get list of visible tiles */
-  var getVisibleTiles = function() {
+  function getVisibleTiles() {
     var visibleImgSpace = { left: 0, top: 0, right: 0, bottom: 0 };
     var visibleTileIds  = { leftmost: 0, topmost: 0, rightmost: 0, bottommost: 0 };
     var numVisibleTiles = { x: 0, y: 0 };
@@ -224,11 +224,11 @@ var zpr = function(viewFinderId, inputValues) {
     }
         
     return visibleTileArray;
-  };
+  }
   
   
   /* add tiles to the imgFrame */
-  var showTiles = function() {
+  function showTiles() {
     var visibleTiles = getVisibleTiles();
     var visibleTilesMap = [];
     var multiplier = Math.pow(2, jp2.levels - currentLevel);
@@ -278,11 +278,11 @@ var zpr = function(viewFinderId, inputValues) {
     removeUnusedTiles(visibleTilesMap);
     storeRelativeLocation();
     drawMarquee();    
-  };
+  }
   
   
   /* remove unused tiles to save memory */
-  var removeUnusedTiles = function (visibleTilesMap) {    
+  function removeUnusedTiles(visibleTilesMap) {    
     imgFrame.find('img').each(function(index) {
       if (/^tile-x/.test(this.id) && !visibleTilesMap[this.id]) {
         $('#' + this.id).remove();       
@@ -293,7 +293,7 @@ var zpr = function(viewFinderId, inputValues) {
   
   
   /* setup zoom controls */
-  var zoom = function(direction) {
+  function zoom(direction) {
     var newLevel = currentLevel;
 
     if (direction === 'in') {
@@ -310,7 +310,7 @@ var zpr = function(viewFinderId, inputValues) {
   
 
   /* setup rotate controls */
-  var rotate = function(direction) {
+  function rotate(direction) {
     var newRotation = currentRotation;
     var angle = 90;
 
@@ -335,7 +335,7 @@ var zpr = function(viewFinderId, inputValues) {
 
 
   /* for rotate actions, swap jp2 dimensions */
-  var swapJp2Dimensions = function() {
+  function swapJp2Dimensions() {
     var tmpWidth = jp2.width;
     
     jp2.width = jp2.height;
@@ -344,7 +344,7 @@ var zpr = function(viewFinderId, inputValues) {
 
 
   /* for rotate actions, swap relative location values based on given value */ 
-  var swapRelativeLocationValues = function(angle) {
+  function swapRelativeLocationValues(angle) {
     var tmpX = imgFrameAttrs.relativeLoc.x;
     
     if (parseInt(angle, 10) > 0) {
@@ -358,7 +358,7 @@ var zpr = function(viewFinderId, inputValues) {
 
   
   /* store imgFrame relative location - for positioning after zoom/rotate */
-  var storeRelativeLocation = function() {
+  function storeRelativeLocation() {
     
     imgFrameAttrs.relativeLoc.x = 
       (Math.round((viewFinder.width() / 2) - imgFrame.position().left) / imgFrame.width()).toFixed(2);
@@ -370,7 +370,7 @@ var zpr = function(viewFinderId, inputValues) {
   
   
   /* setup mouse events for imgFrame dragging */
-  var setupImgFrameDragging = function() {    
+  function setupImgFrameDragging() {    
     var attrs = {
       isDragged: false, 
       left: 0,
@@ -414,15 +414,15 @@ var zpr = function(viewFinderId, inputValues) {
     imgFrame.ondragstart = function() { return false; } // for IE    
     $(document).mouseup(function() { stopImgFrameMove();  });
 
-    var stopImgFrameMove = function() {
+    function stopImgFrameMove() {
       attrs.isDragged = false;      
       imgFrame.css({ 'cursor': '' });
-    };        
-  };
+    }        
+  }
   
   
   /* setup mouse events for marquee dragging */
-  var setupMarqueeDragging = function() {
+  function setupMarqueeDragging() {
     var marqueeBgId = viewFinderId + '-marquee-bg';    
     var marqueeId = viewFinderId + '-marquee';        
     
@@ -485,19 +485,19 @@ var zpr = function(viewFinderId, inputValues) {
     //$(document).mouseup(function() { stopMarqueeMove();  });
     marquee.mouseup(function() { stopMarqueeMove();  });
 
-    var stopMarqueeMove = function() {
+    function stopMarqueeMove() {
       attrs.isDragged = false;      
       marquee.css({ 'cursor': '' });
 
       imgFrameAttrs.relativeLoc.x = ((marquee.position().left + (marquee.width() / 2)) / marqueeAttrs.imgWidth).toFixed(2);
       imgFrameAttrs.relativeLoc.y = ((marquee.position().top + (marquee.height() / 2)) / marqueeAttrs.imgHeight).toFixed(2);
       positionImgFrame();      
-    };            
+    }            
   }
   
   
   /* setup marquee box, background image and marquee  */
-  var setupMarquee = function() {
+  function setupMarquee() {
     var level = util.clampLevel(getLevelForContainer(settings.marqueeImgSize) + 1);
     var marqueeBoxId = viewFinderId + '-marquee-box';
     var marqueeBgId = viewFinderId + '-marquee-bg';    
@@ -534,11 +534,11 @@ var zpr = function(viewFinderId, inputValues) {
     
     setupMarqueeDragging();
     drawMarquee();
-  };
+  }
 
 
   /* draw marquee and position it */
-  var drawMarquee = function() {    
+  function drawMarquee() {    
     var left = Math.ceil((imgFrameAttrs.relativeLoc.x * marqueeAttrs.imgWidth) - (marqueeAttrs.width / 2));
     var top = Math.ceil((imgFrameAttrs.relativeLoc.y * marqueeAttrs.imgHeight) - (marqueeAttrs.height / 2));
     //console.log('marquee: ' + marqueeAttrs.width + ',' + marqueeAttrs.height + ',' + left + ',' + top);        
@@ -549,11 +549,11 @@ var zpr = function(viewFinderId, inputValues) {
       'height': marqueeAttrs.height + 'px',
       'width': marqueeAttrs.width + 'px'                  
     });
-  };
+  }
 
 
   /* set initial marquee dimensions */
-  var setMarqueeImgDimensions = function() {
+  function setMarqueeImgDimensions() {
     var aspectRatio = (jp2.width / jp2.height).toFixed(2);
 
     marqueeAttrs.imgWidth  = Math.round(settings.marqueeImgSize * aspectRatio);                  
@@ -565,9 +565,9 @@ var zpr = function(viewFinderId, inputValues) {
     }
     
     setMarqueeDimensions();
-  };  
+  }  
     
-  var setMarqueeDimensions = function() {
+  function setMarqueeDimensions() {
     marqueeAttrs.width  = Math.ceil((viewFinder.width() / imgFrameAttrs.proportionalWidth) * marqueeAttrs.imgWidth) - 4;
     marqueeAttrs.height = Math.ceil((viewFinder.height() / imgFrameAttrs.proportionalHeight) * marqueeAttrs.imgHeight) - 4;    
   }
@@ -593,4 +593,4 @@ var zpr = function(viewFinderId, inputValues) {
   };
   
   init();
-};
+}
