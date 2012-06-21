@@ -5,9 +5,10 @@ var zpr = function(viewFinderId, inputValues) {
   var imgFrameId = viewFinderId + "-img-frame";
   
   var settings = {
-    tileSize: 512,         // dimension for a square tile 
-    preloadTilesOffset: 0, // rows/columns of tiles to preload
-    marqueeImgSize: 125    // max marquee dimension
+    tileSize: 512,            // dimension for a square tile 
+    preloadTilesOffset: 0,    // rows/columns of tiles to preload
+    marqueeImgSize: 125,      // max marquee dimension
+    djatokaBaseResolution: 92 // djatoka JP2 base resolution for levels
   };  
   
   var jp2 = {
@@ -29,12 +30,12 @@ var zpr = function(viewFinderId, inputValues) {
     jp2.width  = inputValues.width;
     jp2.height = inputValues.height;    
     jp2.imgURL = inputValues.imageStacksURL;
+
+    jp2.levels = getNumLevels();  
     settings.marqueeImgSize = inputValues.marqueeImgSize;
     
     if (typeof inputValues.levels !== 'undefined') { 
       jp2.levels  = inputValues.levels;
-    } else {
-      jp2.levels = getNumLevels();  
     }
     
     viewFinder.addClass('zpr-view-finder');
@@ -81,10 +82,9 @@ var zpr = function(viewFinderId, inputValues) {
   /* get total levels for the jp2 */
   var getNumLevels = function() {
     var longestSide = Math.max(jp2.width, jp2.height);
-    var djatokaLimit = 92;
     var level = 0;
     
-    while (longestSide > djatokaLimit) {
+    while (longestSide > settings.djatokaBaseResolution) {
       level++;
       longestSide = Math.round(longestSide / 2);
     }
@@ -182,21 +182,13 @@ var zpr = function(viewFinderId, inputValues) {
     if (imgFrame.position().left > 0) {
       visibleImgSpace.left = imgFrame.position().left;
     }
-    
+        
     if (imgFrame.position().top > 0) {
       visibleImgSpace.top = imgFrame.position().top;
     }
     
-    visibleImgSpace.right  = imgFrame.position().left + imgFrame.width();
-    visibleImgSpace.bottom = imgFrame.position().left + imgFrame.height();
-    
-    if (visibleImgSpace.right > viewFinder.width()) {
-      visibleImgSpace.right = viewFinder.width();
-    }
-    
-    if (visibleImgSpace.bottom > viewFinder.height()) {
-      visibleImgSpace.bottom = viewFinder.height();
-    }
+    visibleImgSpace.right  = Math.min(imgFrame.position().left + imgFrame.width(), viewFinder.width());
+    visibleImgSpace.bottom = Math.min(imgFrame.position().left + imgFrame.height(), viewFinder.height());
     
     // total tiles visible in viewFinder
     numVisibleTiles.x = Math.ceil((visibleImgSpace.right - visibleImgSpace.left) / tileSize) + 1;
@@ -220,22 +212,11 @@ var zpr = function(viewFinderId, inputValues) {
     visibleTileIds.bottommost += settings.preloadTilesOffset;
     
     // validate visible tile ids
-    if (visibleTileIds.leftmost < 0) { 
-      visibleTileIds.leftmost = 0; 
-    }
+    visibleTileIds.leftmost   = Math.max(visibleTileIds.leftmost, 0);
+    visibleTileIds.topmost    = Math.max(visibleTileIds.topmost, 0);    
+    visibleTileIds.rightmost  = Math.min(visibleTileIds.rightmost, totalTiles.x);
+    visibleTileIds.bottommost = Math.min(visibleTileIds.bottommost, totalTiles.y);
     
-    if (visibleTileIds.topmost < 0) { 
-      visibleTileIds.topmost = 0; 
-    }
-    
-    if (visibleTileIds.rightmost > totalTiles.x) {
-      visibleTileIds.rightmost = totalTiles.x;
-    }
-
-    if (visibleTileIds.bottommost > totalTiles.y) {
-      visibleTileIds.bottommost = totalTiles.y;
-    }
-
     for (var x = visibleTileIds.leftmost; x < visibleTileIds.rightmost; x++) {          
       for (var y = visibleTileIds.topmost; y < visibleTileIds.bottommost; y++) {
         visibleTileArray[ctr++] = [x, y];
@@ -256,6 +237,8 @@ var zpr = function(viewFinderId, inputValues) {
     // prepare each tile and add it to imgFrame
     for (var i = 0; i < visibleTiles.length; i++) {
       var attrs = { x: visibleTiles[i][0], y: visibleTiles[i][1] };      
+      var xTileSize, yTileSize;
+      var angle = parseInt(currentRotation, 10);
       var tile = undefined;
       
       var insetValueX = attrs.x * tileSize;
@@ -271,42 +254,21 @@ var zpr = function(viewFinderId, inputValues) {
       tile = $('#' + attrs.id);
                         
       if (tile.length == 0) {
-        tile = $(document.createElement('img'));
+        tile = $(document.createElement('img'))        
+               .css({ 'position': 'absolute' })
+               .attr({ 'id': attrs.id, 'src': attrs.src });
+    
+        distanceX = (attrs.x * tileSize) + 'px';
+        distanceY = (attrs.y * tileSize) + 'px';     
         
-        tile.css({
-          'position': 'absolute'
-        }).attr({
-          'id': attrs.id,
-          'src': attrs.src
-        });
-        
-        switch (parseInt(currentRotation, 10)) {
-          case 90:
-            tile.css({ 
-              'right': (attrs.y * tileSize) + 'px', 
-              'top': (attrs.x * tileSize) + 'px' 
-            });
-            break;
-          
-          case 180:
-            tile.css({ 
-              'right': (attrs.x * tileSize) + 'px', 
-              'bottom': (attrs.y * tileSize) + 'px' 
-            });
-            break;
-          
-          case 270:
-            tile.css({ 
-              'left': (attrs.y * tileSize) + 'px', 
-              'bottom': (attrs.x * tileSize) + 'px' 
-            });
-            break;
-          
-          default:
-            tile.css({ 
-              'left': (attrs.x * tileSize) + 'px', 
-              'top': (attrs.y * tileSize) + 'px' 
-            });
+        if (angle === 90) {
+          tile.css({ 'right': distanceY, 'top': distanceX });
+        } else if (angle === 180) {
+          tile.css({ 'right': distanceX, 'bottom': distanceY });
+        } else if (angle === 270) {
+          tile.css({ 'left': distanceY, 'bottom': distanceX });
+        } else {
+          tile.css({ 'left': distanceX, 'top': distanceY });
         }
         
         imgFrame.append(tile);
@@ -334,19 +296,13 @@ var zpr = function(viewFinderId, inputValues) {
   var zoom = function(direction) {
     var newLevel = currentLevel;
 
-    switch (direction) {
-      case 'in': 
-        newLevel = util.clampLevel(newLevel + 1); 
-        break;
-        
-      case 'out': 
-        newLevel = util.clampLevel(newLevel - 1); 
-        break;
-        
-      default: ;
+    if (direction === 'in') {
+      newLevel = util.clampLevel(newLevel + 1); 
+    } else if (direction === 'out') {
+      newLevel = util.clampLevel(newLevel - 1); 
     }
-    
-    if (newLevel != currentLevel) {
+
+    if (newLevel !== currentLevel) {
       currentLevel = newLevel;
       setImgFrameSize(currentLevel);
     }
@@ -358,23 +314,17 @@ var zpr = function(viewFinderId, inputValues) {
     var newRotation = currentRotation;
     var angle = 90;
 
-    switch (direction) {
-      case 'cw': 
-        newRotation = currentRotation + 90;         
-        break;
-        
-      case 'ccw': 
-        newRotation = currentRotation - 90;
-        angle = -90;
-        break;
-        
-      default: ;
+    if (direction === 'cw') {
+      newRotation = currentRotation + 90;         
+    } else if (direction === 'ccw') {
+      newRotation = currentRotation - 90;
+      angle = -90;      
     }
     
     if (newRotation < 0) { newRotation += 360; }
     if (newRotation >= 360) { newRotation -= 360; }
     
-    if (newRotation != currentRotation) {
+    if (newRotation !== currentRotation) {
       currentRotation = newRotation;
       swapJp2Dimensions();
       swapRelativeLocationValues(angle);
@@ -439,11 +389,7 @@ var zpr = function(viewFinderId, inputValues) {
         attrs.start.top  = imgFrame.position().top;
         attrs.isDragged  = true;         
 
-        imgFrame.css({
-          'cursor': 'default', 
-          'cursor': '-moz-grabbing',
-          'cursor': '-webkit-grabbing'
-        });
+        imgFrame.css({ 'cursor': 'default', 'cursor': '-moz-grabbing', 'cursor': '-webkit-grabbing' });
            
         return false;
       },
@@ -609,18 +555,18 @@ var zpr = function(viewFinderId, inputValues) {
   /* set initial marquee dimensions */
   var setMarqueeImgDimensions = function() {
     var aspectRatio = (jp2.width / jp2.height).toFixed(2);
+
+    marqueeAttrs.imgWidth  = Math.round(settings.marqueeImgSize * aspectRatio);                  
+    marqueeAttrs.imgHeight = settings.marqueeImgSize;
        
     if (aspectRatio > 1) {
       marqueeAttrs.imgWidth  = settings.marqueeImgSize;
       marqueeAttrs.imgHeight = Math.round(settings.marqueeImgSize / aspectRatio);            
-    } else {
-      marqueeAttrs.imgWidth  = Math.round(settings.marqueeImgSize * aspectRatio);                  
-      marqueeAttrs.imgHeight = settings.marqueeImgSize;
     }
     
     setMarqueeDimensions();
   };  
-  
+    
   var setMarqueeDimensions = function() {
     marqueeAttrs.width  = Math.ceil((viewFinder.width() / imgFrameAttrs.proportionalWidth) * marqueeAttrs.imgWidth) - 4;
     marqueeAttrs.height = Math.ceil((viewFinder.height() / imgFrameAttrs.proportionalHeight) * marqueeAttrs.imgHeight) - 4;    
@@ -648,5 +594,3 @@ var zpr = function(viewFinderId, inputValues) {
   
   init();
 };
-
-
