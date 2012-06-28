@@ -103,3 +103,13 @@ body {
   opacity: 0.5;  
 }
 
+.zpr-error {  
+  background-color: #ffbaba;
+  border: 1px solid #d8000c;
+  border-radius: 5px;
+  color: #d8000c;
+  font-size: 0.8em;
+  float: left;
+  line-height: 1.8;
+  padding: 5px 15px;
+}

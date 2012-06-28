@@ -6,8 +6,8 @@ function zpr(viewFinderId, inputValues) {
   
   var settings = {
     tileSize: 512,            // dimension for a square tile 
+    marqueeImgSize: 125,      // max marquee dimension (should be > 50)
     preloadTilesOffset: 0,    // rows/columns of tiles to preload
-    marqueeImgSize: 125,      // max marquee dimension
     djatokaBaseResolution: 92 // djatoka JP2 base resolution for levels
   };  
   
@@ -15,9 +15,10 @@ function zpr(viewFinderId, inputValues) {
     width: 0,
     height: 0,
     levels: undefined,    
-    url: '', 
+    imgURL: undefined
   }
-      
+   
+  var errors = [];    
   var currentLevel = 1;
   var currentRotation = 0;
   var imgFrameAttrs = { relativeLoc: {}, proportionalWidth: 0, proportionalHeight: 0 };
@@ -25,37 +26,83 @@ function zpr(viewFinderId, inputValues) {
 
   /* init() function */
   function init() {
-    // copy data from function arguments
-    jp2.url    = inputValues.jp2URL;
-    jp2.width  = inputValues.width;
-    jp2.height = inputValues.height;    
-    jp2.imgURL = inputValues.imageStacksURL;
-
-    jp2.levels = getNumLevels();  
-    settings.marqueeImgSize = inputValues.marqueeImgSize;
+    // validate and store input values
+    storeInputValues(inputValues);
     
-    if (typeof inputValues.levels !== 'undefined') { 
-      jp2.levels  = inputValues.levels;
+    // if input errors, display them and quit
+    if (errors.length > 0) {
+      renderErrors();
+      return;
     }
-    
-    viewFinder.addClass('zpr-view-finder');
-    
-    // add imgFrame
-    viewFinder.append($('<div>', { 'id': imgFrameId, 'class': 'zpr-img-frame' }));        
-    imgFrame = $('#' + imgFrameId);
-    
+        
+    // create and attach 'imgFrame' element to 'viewFinder'
+    viewFinder
+      .addClass('zpr-view-finder')
+      .append($('<div>', { 'id': imgFrameId, 'class': 'zpr-img-frame' }));        
+      
+    imgFrame = $('#' + imgFrameId);    
     currentLevel = getLevelForContainer(viewFinder.width(), viewFinder.height());
-    setImgFrameSize(currentLevel);
-            
+    
+    setImgFrameSize(currentLevel);            
     setupImgFrameDragging();
     storeRelativeLocation();
     addControlElements();
   }
 
+
+  /* validate mandatory and optional input values, and store them locally */
+  function storeInputValues(inputValues) {                
+    // store jp2 width from input values
+    if (util.isValidLength(inputValues.width)) {
+      jp2.width = parseInt(inputValues.width, 10);
+    } else {
+      errors.push('Error: Input width is empty or not valid');
+    }
+    
+    // store jp2 height from input values
+    if (util.isValidLength(inputValues.height)) {
+      jp2.height = parseInt(inputValues.height, 10);
+    } else {
+      errors.push('Error: Input height is empty or not valid')
+    }
+
+    // store image stacks URL from input values
+    if (util.isValid(inputValues.imageStacksURL)) {
+      jp2.imgURL = inputValues.imageStacksURL.toString();
+    } else {
+      errors.push('Error: Input Image Stacks URL is empty or not valid');
+    }    
+    
+    // store jp2 levels from input values (optional argument)
+    if (util.isValidLength(inputValues.levels)) {
+      jp2.levels = parseInt(inputValues.levels, 10);
+    } else {
+      jp2.levels = getNumLevels();
+    }
+
+    // store marquee size from input values (optional argument)
+    if (util.isValidLength(inputValues.marqueeImgSize)) {
+      settings.marqueeImgSize = parseInt(inputValues.marqueeImgSize, 10);
+    }
+  }
+  
+  /* render input errors to page */
+  function renderErrors() {
+    var errorBlock = $('<div></div>').addClass('zpr-error');
+    
+    $.each(errors, function(index, error) {
+      errorBlock
+        .append(error + '</br>');
+    });
+    
+    if (errors.length > 0) {
+      viewFinder.append(errorBlock);
+    }    
+  }
+  
   
   /* add zoom and other controls */
-  function addControlElements() {
-    
+  function addControlElements() {    
     // add zoom/rotate controls
     viewFinder
     .append($('<div>').attr({ 'class': 'zpr-controls' })
@@ -72,10 +119,8 @@ function zpr(viewFinderId, inputValues) {
         .attr({ 'id': viewFinderId + '-rotate-ccw', 'src': 'images/zpr-rotate-ccw.png' })
         .click(function() { rotate('ccw'); }))
     );
-
-    if (settings.marqueeImgSize > 50) {
-      setupMarquee();
-    }
+    
+    setupMarquee();
   }  
     
   
@@ -456,6 +501,8 @@ function zpr(viewFinderId, inputValues) {
       },
       
       mousemove: function(event) {
+        var maxLeft, maxTop;
+        
         if (!event) { event = window.event; } // required for IE
         
         if (attrs.isDragged) {
@@ -463,8 +510,8 @@ function zpr(viewFinderId, inputValues) {
           attrs.top = attrs.start.top + (event.clientY - attrs.drag.top);
   
           // limit marquee dragging to within the marquee background image
-          var maxLeft = marqueeAttrs.imgWidth - marquee.width();
-          var maxTop  = marqueeAttrs.imgHeight - marquee.height();
+          maxLeft = marqueeAttrs.imgWidth - marquee.width();
+          maxTop  = marqueeAttrs.imgHeight - marquee.height();
   
           // validate positioning values
           if (attrs.left < 0) { attrs.left = 0; } 
@@ -502,7 +549,15 @@ function zpr(viewFinderId, inputValues) {
     var marqueeBoxId = viewFinderId + '-marquee-box';
     var marqueeBgId = viewFinderId + '-marquee-bg';    
     var marqueeId = viewFinderId + '-marquee';        
+    var minMarqueeImgSize = 50;
+    var marqueeURL;
     
+    // do not render marquee if marquee image size is small (it becomes unusable)
+    if (settings.marqueeImgSize < minMarqueeImgSize) {
+      return;
+    }
+    
+    // remove marquee if already present
     if ($('#' + marqueeBoxId).length != 0) {
       $('#' + marqueeBoxId).remove();
     }
@@ -510,28 +565,26 @@ function zpr(viewFinderId, inputValues) {
     storeRelativeLocation();
     setMarqueeImgDimensions();
              
-    var marqueeURL = jp2.imgURL + '.jpg?w=' + marqueeAttrs.imgWidth + '&h=' + marqueeAttrs.imgHeight + '&rotate=' + currentRotation;   
+    marqueeURL = jp2.imgURL + '.jpg?w=' + marqueeAttrs.imgWidth + '&h=' + marqueeAttrs.imgHeight + '&rotate=' + currentRotation;   
       
     viewFinder
     .append($('<div>', { 'id': marqueeBoxId, 'class': 'zpr-marquee-box' })
       .append($('<div>', { 'id': marqueeBgId }))    
     );    
       
-    var divMarqueeBgImg = $('#' + marqueeBgId);
-    
-    divMarqueeBgImg.css({
+    // append marquee to div with marquee background image  
+    $('#' + marqueeBgId)
+    .css({
       'height': (marqueeAttrs.imgHeight + 4) + 'px', // 4 = marquee border  
       'width':  (marqueeAttrs.imgWidth + 4) + 'px', // 4 = marquee border
       'position': 'relative', 
       'background': '#fff url(\'' + marqueeURL + '\')  no-repeat center center'  
-    });
-    
-    // append marquee to div with marquee background image
-    divMarqueeBgImg.append($('<div>', { 
+    })
+    .append($('<div>', { 
       'id': marqueeId, 
       'class': 'zpr-marquee'      
     }));
-    
+        
     setupMarqueeDragging();
     drawMarquee();
   }
@@ -589,6 +642,24 @@ function zpr(viewFinderId, inputValues) {
       zoom = (100 / Math.pow(2, jp2.levels - currentLevel)).toFixed(5);
       
       return zoom;
+    },    
+    
+    // check if value is defined
+    isValid: function(value) {
+      return (typeof value !== 'undefined');
+    },
+    
+    // check if value is a valid length (positive number > 0)
+    isValidLength: function(value) {
+      if (typeof value !== 'undefined') {
+        value = parseInt(value, 10);
+        
+        if (value > 0) {
+          return true;    
+        }
+      } 
+      
+      return false;
     }
   };
   
