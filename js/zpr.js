@@ -1,7 +1,7 @@
 function zpr(viewFinderId, inputValues) {
-
+  
   var viewFinder = $('#' + viewFinderId); // viewFinder DOM element
-  var imgFrame   = undefined; // imgFrame DOM element
+  var imgFrame   = undefined; // for imgFrame DOM element
   var imgFrameId = viewFinderId + "-img-frame";
   
   var settings = {
@@ -11,16 +11,11 @@ function zpr(viewFinderId, inputValues) {
     djatokaBaseResolution: 92 // djatoka JP2 base resolution for levels
   };  
   
-  var jp2 = {
-    width: 0,
-    height: 0,
-    levels: undefined,    
-    imgURL: undefined
-  }
-   
   var errors = [];    
   var currentLevel = 1;
   var currentRotation = 0;
+  
+  var jp2 = { width: 0, height: 0, levels: undefined, imgURL: undefined }   
   var imgFrameAttrs = { relativeLoc: {}, proportionalWidth: 0, proportionalHeight: 0 };
   var marqueeAttrs = { imgWidth: 0, imgHeight: 0, width: 0, height: 0 }; 
 
@@ -29,7 +24,7 @@ function zpr(viewFinderId, inputValues) {
     // validate and store input values
     storeInputValues(inputValues);
     
-    // if input errors, display them and quit
+    // if there are input value errors, display them and quit
     if (errors.length > 0) {
       renderErrors();
       return;
@@ -130,8 +125,8 @@ function zpr(viewFinderId, inputValues) {
     var level = 0;
     
     while (longestSide > settings.djatokaBaseResolution) {
-      level++;
       longestSide = Math.round(longestSide / 2);
+      level += 1;
     }
         
     return level;
@@ -163,22 +158,25 @@ function zpr(viewFinderId, inputValues) {
   
   /* calculate level for a given container */
   function getLevelForContainer(ctWidth, ctHeight) {
-    var maxJp2Dimension = Math.max(jp2.width, jp2.height);
-    var minContainerDimension = ctWidth;
+    var jp2Width  = jp2.width;
+    var jp2Height = jp2.height;
+    var level = jp2.levels;
     
-    if (typeof ctHeight !== 'undefined') {
-      minContainerDimension = Math.min(ctWidth, ctHeight);
+    if (!util.isValidLength(ctHeight)) {
+      ctHeight = ctWidth;
     }
         
-    for (var level = jp2.levels; level >= 0; level--) {
-      if (minContainerDimension >= maxJp2Dimension) {
-        return level;
-      }    
+    while (level >= 0) {
+      if (ctWidth >= jp2Width && ctHeight >= jp2Height) {
+        return util.clampLevel(level);        
+      }
       
-      maxJp2Dimension = Math.round(maxJp2Dimension / 2);
-    }
-    
-    return 0;  
+      jp2Width  = Math.round(jp2Width / 2);
+      jp2Height = Math.round(jp2Height / 2);
+      level -= 1;      
+    }  
+      
+    return 0;
   }
   
   
@@ -262,9 +260,10 @@ function zpr(viewFinderId, inputValues) {
     visibleTileIds.rightmost  = Math.min(visibleTileIds.rightmost, totalTiles.x);
     visibleTileIds.bottommost = Math.min(visibleTileIds.bottommost, totalTiles.y);
     
-    for (var x = visibleTileIds.leftmost; x < visibleTileIds.rightmost; x++) {          
-      for (var y = visibleTileIds.topmost; y < visibleTileIds.bottommost; y++) {
-        visibleTileArray[ctr++] = [x, y];
+    for (var x = visibleTileIds.leftmost; x < visibleTileIds.rightmost; x += 1) {          
+      for (var y = visibleTileIds.topmost; y < visibleTileIds.bottommost; y += 1) {
+        visibleTileArray[ctr] = [x, y];
+        ctr += 1;
       }
     }
         
@@ -280,7 +279,7 @@ function zpr(viewFinderId, inputValues) {
     var tileSize = settings.tileSize;
     
     // prepare each tile and add it to imgFrame
-    for (var i = 0; i < visibleTiles.length; i++) {
+    for (var i = 0; i < visibleTiles.length; i += 1) {
       var attrs = { x: visibleTiles[i][0], y: visibleTiles[i][1] };      
       var xTileSize, yTileSize;
       var angle = parseInt(currentRotation, 10);
@@ -288,12 +287,11 @@ function zpr(viewFinderId, inputValues) {
       
       var insetValueX = attrs.x * tileSize;
       var insetValueY = attrs.y * tileSize;        
-      //console.log('x=' + attrs.x + ', y=' + attrs.y);
       
       attrs.id = 'tile-x' + attrs.x + 'y' + attrs.y + 'z' + currentLevel + 'r' + currentRotation + '-' + viewFinderId;      
-      attrs.src = jp2.imgURL + '.jpg?zoom=' + util.getZoomFromLevel(currentLevel) + 
-                  '&region=' + insetValueX + ',' + insetValueY + ',' + tileSize + ',' + tileSize + 
-                  '&rotate=' + currentRotation;
+      attrs.src = 
+        jp2.imgURL + '.jpg?zoom=' + util.getZoomFromLevel(currentLevel) + 
+        '&region=' + insetValueX + ',' + insetValueY + ',' + tileSize + ',' + tileSize + '&rotate=' + currentRotation;
       
       visibleTilesMap[attrs.id] = true; // useful for removing unused tiles       
       tile = $('#' + attrs.id);
@@ -552,7 +550,7 @@ function zpr(viewFinderId, inputValues) {
     var minMarqueeImgSize = 50;
     var marqueeURL;
     
-    // do not render marquee if marquee image size is small (it becomes unusable)
+    // if marquee image size is too small, it becomes unusable. So, don't render it
     if (settings.marqueeImgSize < minMarqueeImgSize) {
       return;
     }
@@ -594,7 +592,6 @@ function zpr(viewFinderId, inputValues) {
   function drawMarquee() {    
     var left = Math.ceil((imgFrameAttrs.relativeLoc.x * marqueeAttrs.imgWidth) - (marqueeAttrs.width / 2));
     var top = Math.ceil((imgFrameAttrs.relativeLoc.y * marqueeAttrs.imgHeight) - (marqueeAttrs.height / 2));
-    //console.log('marquee: ' + marqueeAttrs.width + ',' + marqueeAttrs.height + ',' + left + ',' + top);        
     
     $('#' + viewFinderId + '-marquee').css({
       'left': left + 'px',
